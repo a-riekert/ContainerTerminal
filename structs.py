@@ -8,6 +8,8 @@ class Carrier:
         self.log_on_time = None
         self.orders = []
         self.actions = []
+        self.overlaps = 0
+        self.big_overlaps = 0
 
 
 class Location:
