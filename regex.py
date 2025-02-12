@@ -1,6 +1,7 @@
 import re
 from read_files import *
 from structs import *
+from plotting import plot_locs_and_vehicles
 
 locations, carriers, orders = read_data_to_dicts('VOSimu-InputInformation.xlsx')
 
@@ -13,7 +14,7 @@ print('Number of times distance information was wrong:', errors['wrong_distance'
 print('Number of incomplete/failed jobs:', errors['incomplete_jobs'])
 
 
-def kms(x, pos):
+def kms(x, _):
     return f'{x * 1e-6:.1f}km'  # Converts to kilometres
 
 
@@ -52,7 +53,6 @@ for i, car in enumerate(carriers.values()):
             drive_dur += act.duration.total_seconds()
     percentage = 100. * dur.total_seconds() / total_time.total_seconds()
 
-    # print(f'Number of actions of carrier {car.name}: {len(car.actions)}, total working time: {dur}, time logged on: {total_time}, utilization: {percentage:.2f}%.')
     ax1.bar(car.name, len(car.actions))
     ax2.bar(car.name, percentage)
     ax3.bar(car.name, dist)
@@ -72,11 +72,11 @@ for i, car in enumerate(carriers.values()):
             car.overlaps += 1
 
         if next_act.type == 'DROP':
-            assert act.type == 'DRIVE_DROP'
+            assert act.type == 'DRIVE_DROP' and act.order == next_act.order
         if next_act.type == 'PICK':
-            assert act.type == 'DRIVE_PICK'
+            assert act.type == 'DRIVE_PICK' and act.order == next_act.order
         if next_act.type == 'DRIVE_DROP':
-            assert act.type == 'PICK'
+            assert act.type == 'PICK' and act.order == next_act.order
         if next_act.type == 'DRIVE_PICK':
             assert act.type == 'DROP'
 
@@ -110,5 +110,9 @@ ax3.yaxis.set_major_formatter(FuncFormatter(kms))
 
 ax.xaxis.set_major_formatter(FuncFormatter(kms))
 ax.yaxis.set_major_formatter(FuncFormatter(kms))
+
+fig6, ax6 = plot_locs_and_vehicles(locations, carriers)
+fig5.savefig('plot_overlaps')
+fig6.savefig('plot_locs')
 #.legend()
 plt.show()
