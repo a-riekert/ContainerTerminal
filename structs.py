@@ -1,9 +1,33 @@
 import math
 from datetime import datetime, time, timedelta
+from typing import Dict
+
+
+class Location:
+    """Class describing a location in the terminal.
+    name: name of the location
+    coordinates: tuple of (x,y)-coordinates
+    capacity: number of carrier lanes (default: infinity)"""
+    def __init__(self,
+                 name: str,
+                 coordinates: tuple[int, int],
+                 capacity=math.inf):
+        self.name = name
+        self.coordinates = coordinates
+        self.capacity = capacity
+        self.nr_carriers = 0
+
+    def dist(self, other_loc):
+        return abs(self.coordinates[0] - other_loc.coordinates[0]) + abs(self.coordinates[1] - other_loc.coordinates[1])
 
 
 class Carrier:
-    def __init__(self, name, loc):
+    """Class describing a straddle carrier.
+    name: name of the carrier,
+    loc: initial location"""
+    def __init__(self,
+                 name: str,
+                 loc: Location):
         self.name = name
         self.loc = loc
         self.log_on_time = None
@@ -35,19 +59,17 @@ class Carrier:
         return dist
 
 
-class Location:
-    def __init__(self, name, coordinates, capacity=math.inf):
-        self.name = name
-        self.coordinates = coordinates
-        self.capacity = capacity
-        self.nr_carriers = 0
-
-    def dist(self, other_loc):
-        return abs(self.coordinates[0] - other_loc.coordinates[0]) + abs(self.coordinates[1] - other_loc.coordinates[1])
-
-
 class Order:
-    def __init__(self, name, origin, dest, first_time):
+    """Class describing a container order.
+    name: id of the container order
+    origin: start location
+    dest: destination location
+    first_time: time order first becomes known."""
+    def __init__(self,
+                 name: str,
+                 origin: Location,
+                 dest: Location,
+                 first_time: datetime):
         self.name = name
         self.origin = origin
         self.dest = dest
@@ -60,7 +82,13 @@ class Order:
 
 
 class Action:
-    def __init__(self, order, origin, dest, start_time, duration, action_type):
+    def __init__(self,
+                 order: Order,
+                 origin: Location,
+                 dest: Location,
+                 start_time: datetime,
+                 duration: int,
+                 action_type: str):
         self.order = order
         self.origin = origin
         self.dest = dest
@@ -71,7 +99,7 @@ class Action:
         self.dist = self.origin.dist(self.dest)
 
 
-def calculate_overlaps(vehicles):
+def calculate_overlaps(vehicles: Dict[str, Carrier]):
     for i, car in enumerate(vehicles.values()):
 
         for i, act in enumerate(car.actions[:-1]):
@@ -82,7 +110,7 @@ def calculate_overlaps(vehicles):
                 car.overlaps += 1
 
 
-def check_consistency(vehicles):
+def check_consistency(vehicles: Dict[str, Carrier]):
     inconsistent_actions = 0
     for car in vehicles.values():
 

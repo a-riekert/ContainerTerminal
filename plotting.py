@@ -1,16 +1,15 @@
-from structs import Carrier, Location, Order
+from structs import *
 
-import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
-from datetime import datetime
 
 
 def kms(x, _):
     return f'{x * 1e-6:.1f}km'  # Converts to kilometres
 
 
-def plot_locs_and_vehicles(locations, vehicles):
+def plot_locs_and_vehicles(locations: Dict[str, Location],
+                           vehicles: Dict[str, Carrier]):
 
     fig, ax = plt.subplots(figsize=(14, 12))
     ax.scatter([loc.coordinates[0] for loc in locations.values()],
@@ -30,7 +29,8 @@ def plot_locs_and_vehicles(locations, vehicles):
     return fig, ax
 
 
-def plot_nr_jobs(vehicles, orders):
+def plot_nr_jobs(vehicles: Dict[str, Carrier],
+                 orders: Dict[str, Order]):
     carrier_dict = {car: 0 for car in vehicles.keys()}
     for order in orders.values():
         carrier_dict[order.pick_carrier[0].name] += 1
@@ -45,7 +45,7 @@ def plot_nr_jobs(vehicles, orders):
     return fig, ax
 
 
-def plot_distance(vehicles):
+def plot_distance(vehicles: Dict[str, Carrier]):
     fig, ax = plt.subplots(figsize=(14, 7))
     ax.bar(vehicles.keys(), [car.travelled_distance() for car in vehicles.values()])
 
@@ -58,7 +58,7 @@ def plot_distance(vehicles):
     return fig, ax
 
 
-def plot_work_percentage(vehicles):
+def plot_work_percentage(vehicles: Dict[str, Carrier]):
     total_times = [(car.actions[-1].end_time - car.log_on_time).total_seconds() for car in vehicles.values()]
     durations = [car.pick_duration() + car.drop_duration() + car.drive_duration() for car in vehicles.values()]
     percentages = [100. * dur / total_time for (dur, total_time) in zip(durations, total_times)]
@@ -73,7 +73,7 @@ def plot_work_percentage(vehicles):
     return fig, ax
 
 
-def plot_overlaps(vehicles):
+def plot_overlaps(vehicles: Dict[str, Carrier]):
     fig, ax = plt.subplots(figsize=(14, 7))
     ax.bar(vehicles.keys(), [car.big_overlaps for car in vehicles.values()], color='red', label='Overlap of >1s')
     ax.bar(vehicles.keys(), [car.overlaps for car in vehicles.values()],
@@ -86,7 +86,7 @@ def plot_overlaps(vehicles):
     return fig, ax
 
 
-def plot_action_times(vehicles):
+def plot_action_times(vehicles: Dict[str, Carrier]):
     pick_durations = [car.pick_duration() for car in vehicles.values()]
     drop_durations = [car.drop_duration() for car in vehicles.values()]
     travel_durations = [car.drive_duration() for car in vehicles.values()]
