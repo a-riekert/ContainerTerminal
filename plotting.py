@@ -1,4 +1,3 @@
-
 from structs import Carrier, Location, Order
 
 import pandas as pd
@@ -6,92 +5,44 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
 from datetime import datetime
 
-data = pd.read_excel('VOSimu-InputInformation.xlsx', [0, 1, 2])
 
-counter = 0
-lengths = []
-with open('logger_all.log') as file:
-    for line in file:
-        counter += 1
-        if counter % 1000 == 0:
-            print(line)
-        lengths.append(len(line))
-print('Number of lines:', counter)
-print('Maximal, minimal line length:', max(lengths), min(lengths))
-#plt.hist(lengths, bins=20)
-#plt.show()
+def plot_locs_and_vehicles(locations, vehicles):
+    def kms(x, _):
+        return f'{x * 1e-6:.1f}km'  # Converts to kilometres
 
-locations = data[0]
-vehicles = data[1]
-orders = data[2]
+    fig, ax = plt.subplots(figsize=(14, 12))
+    ax.scatter([loc.coordinates[0] for loc in locations.values()],
+               [loc.coordinates[1] for loc in locations.values()],
+               marker='.')
 
-loc_dict = dict()
-for index, row in locations.iterrows():
-    name = row['Location Name']
-    x = row['X-Coordinate [mm]']
-    y = row['Y-Coordinate [mm]']
-    cap = row['Capacity limitation (# SC)']
+    for car in vehicles.values():
+        x = float(car.loc.coordinates[0])
+        y = float(car.loc.coordinates[1])
+        print(f'Start location of vehicle {car.name}: ({x}, {y}).')
+        ax.plot(x, y, marker='x', label=car.name)
+    ax.legend()
+    ax.xaxis.set_major_formatter(FuncFormatter(kms))
+    ax.yaxis.set_major_formatter(FuncFormatter(kms))
 
-    loc_dict[name] = Location(name, (x, y), cap)
+    ax.set_title('Locations and starting points of carriers')
 
-carrier_dict = dict()
-for index, row in vehicles.iterrows():
-    name = row['ID']
-    loc = row['StartLocation']
-
-    carrier_dict[name] = Carrier(name, loc_dict[loc])
-
-order_dict = dict()
-for index, row in orders.iterrows():
-    name = row['ContainerName']
-    orig = row['OriginLocation']
-    dest = row['DestinationLocation']
-    first_time = datetime.fromisoformat(row['Time first known'])
-
-    order_dict[name] = Order(name, loc_dict[orig], loc_dict[dest], first_time)
-
-print(carrier_dict)
-
-print(loc_dict)
-
-test = 0
-os = []
-for index, row in orders.iterrows():
-    if not row['TractorOrderId'] == 'TO_' + row['ContainerOrderId']:
-        print(f'In row {index}, first and second entry are different.')
-        test = 1
-    if not row['TractorOrderId'] == 'TO_CO_' + row['ContainerName']:
-        print(f'In row {index}, first and third entry are different.')
-        test = 1
-    os.append(int(row['ContainerName'][7:]))
-    if index % 100 == 0:
-        print(row['TractorOrderId'], row['ContainerOrderId'], row['ContainerName'])
-
-if test == 0:
-    print('Test passed successfully.')
-print(sorted(os))
+    return fig, ax
 
 
-def kms(x, pos):
-    return f'{x * 1e-6:.1f}km'  # Converts to kilometres
+def test(orders):
+    test = 0
+    os = []
+    for index, row in orders.iterrows():
+        if not row['TractorOrderId'] == 'TO_' + row['ContainerOrderId']:
+            print(f'In row {index}, first and second entry are different.')
+            test = 1
+        if not row['TractorOrderId'] == 'TO_CO_' + row['ContainerName']:
+            print(f'In row {index}, first and third entry are different.')
+            test = 1
+        os.append(int(row['ContainerName'][7:]))
+        if index % 100 == 0:
+            print(row['TractorOrderId'], row['ContainerOrderId'], row['ContainerName'])
 
-
-loc_x = locations['X-Coordinate [mm]']
-loc_y = locations['Y-Coordinate [mm]']
-
-fig, ax = plt.subplots(figsize=(14, 14))
-ax.scatter(loc_x, loc_y, marker='.')
-
-vehicle_names = vehicles['ID']
-vehicle_locs = vehicles['StartLocation']
-
-for n, l in zip(vehicle_names, vehicle_locs):
-    row = locations.loc[(locations['Location Name'] == l)]
-    x = float(row['X-Coordinate [mm]'].iloc[0])
-    y = float(row['Y-Coordinate [mm]'].iloc[0])
-    print(f'Start location of vehicle {n}: ({x}, {y}).')
-    ax.plot(x, y, marker='x', label=n)
-plt.legend()
-ax.xaxis.set_major_formatter(FuncFormatter(kms))
-ax.yaxis.set_major_formatter(FuncFormatter(kms))
-plt.show()
+    if test == 0:
+        print('Test passed successfully.')
+    print(sorted(os))
