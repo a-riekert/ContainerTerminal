@@ -1,8 +1,6 @@
 from structs import *
 
 import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.ticker import FuncFormatter
 from datetime import datetime
 import math
 import re
@@ -202,17 +200,15 @@ def read_logs(file_name, locations, carriers, orders):
             if m_finish2:
                 locations[m_finish2.group(5)].nr_carriers -= 1
 
-    for ord in orders.values():
-        if any([len(ord.pick_carrier) != 1,
-                len(ord.drop_carrier) != 1,
-                len(ord.pick_location) != 1,
-                len(ord.drop_location) != 1,
-                ord.drop_carrier[0] != ord.pick_carrier[0],
-                ord.pick_location[0] != ord.origin,
-                ord.drop_location[0] != ord.dest]):
+    for order in orders.values():
+        if any([len(order.pick_carrier) != 1,
+                len(order.drop_carrier) != 1,
+                len(order.pick_location) != 1,
+                len(order.drop_location) != 1,
+                order.drop_carrier[0] != order.pick_carrier[0],
+                order.pick_location[0] != order.origin,
+                order.drop_location[0] != order.dest]):
             incomplete_jobs += 1
-
-    print('Number of incomplete/failed jobs:', incomplete_jobs)
 
     error_dict = {'nr_orders': len(orders),
                   'capacity_exceeded': capacity_exceeded,
