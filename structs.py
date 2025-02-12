@@ -37,7 +37,8 @@ class Order:
 
 
 class Action:
-    def __init__(self, origin, dest, start_time, duration, action_type):
+    def __init__(self, order, origin, dest, start_time, duration, action_type):
+        self.order = order
         self.origin = origin
         self.dest = dest
         self.start_time = start_time
