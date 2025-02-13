@@ -3,7 +3,10 @@ from structs import *
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
 
-from adjustText import adjust_text  # Import the library
+try:
+    from adjustText import adjust_text  # Import the library
+except ImportError:
+    print('adjustText not installed.')
 
 
 def kms(x, _):
