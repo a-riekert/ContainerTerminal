@@ -2,40 +2,44 @@ from read_files import *
 from structs import *
 from plotting import *
 
-locations, carriers, orders = read_data_to_dicts('data/VOSimu-InputInformation.xlsx')
+locations, carriers, orders, test = read_data_to_dicts('data/VOSimu-InputInformation.xlsx')
 
-locations, carriers, orders, errors = read_logs('data/logger_all.log', locations, carriers, orders)
+locations, carriers, orders, infos = read_logs('data/logger_all.log', locations, carriers, orders)
 
-# print total number of orders and number of things that went wrong (should all be 0)
-print('Number of orders:', errors['nr_orders'])
-print('Number of times capacity was exceeded:', errors['capacity_exceeded'])
-print('Number of times position information was wrong:', errors['wrong_location'])
-print('Number of times distance information was wrong:', errors['wrong_distance'])
-print('Number of incomplete/failed jobs:', errors['incomplete_jobs'])
+# find out if any inconsistencies in log file were found.
+if any([test,
+        infos['capacity_exceeded'],
+        infos['wrong_location'],
+        infos['wrong_distance'],
+        infos['incomplete_jobs']]):
+    raise RuntimeWarning('Inconsistencies in data found.')
 
 calculate_overlaps(carriers)
-check_consistency(carriers)
+if check_consistency(carriers):
+    raise RuntimeWarning('Some carrier actions were inconsistent.')
 
-fig1, ax1 = plot_nr_jobs(carriers, orders)
+fig_jobs, _ = plot_nr_jobs(carriers, orders)
 
-fig2, ax2 = plot_work_percentage(carriers)
+fig_work, _ = plot_work_percentage(carriers)
 
-fig3, ax3 = plot_distance(carriers)
+fig_dist, _ = plot_distance(carriers)
 
-fig4, ax4 = plot_action_times(carriers)
+fig_times, _ = plot_action_times(carriers)
 
-fig5, ax5 = plot_overlaps(carriers)
+fig_overlaps, _ = plot_overlaps(carriers)
 
-fig6, ax6 = plot_locs_and_vehicles(locations, carriers)
+fig_locs, _ = plot_locs_and_vehicles(locations, carriers)
+fig_locs_adjust, _ = plot_locs_and_vehicles(locations, carriers, adjust_labels=True)
 
-fig7, ax7 = plot_first_distances(carriers)
+fig_first_dist, _ = plot_first_distances(carriers)
 
-fig1.savefig('plots/plot_nr_jobs')
-fig2.savefig('plots/plot_work_percentage')
-fig3.savefig('plots/plot_distances')
-fig4.savefig('plots/plot_action_times')
-fig5.savefig('plots/plot_overlaps')
-fig6.savefig('plots/plot_locs')
-fig7.savefig('plots/plot_initial_distances')
+fig_jobs.savefig('plots/plot_nr_jobs')
+fig_work.savefig('plots/plot_work_percentage')
+fig_dist.savefig('plots/plot_distances')
+fig_times.savefig('plots/plot_action_times')
+fig_overlaps.savefig('plots/plot_overlaps')
+fig_locs.savefig('plots/plot_locs')
+fig_locs_adjust.savefig('plots/plot_locs_adjust')
+fig_first_dist.savefig('plots/plot_initial_distances')
 
 plt.show()
