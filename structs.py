@@ -52,17 +52,25 @@ class Carrier:
         dur = sum([act.duration.total_seconds() for act in self.actions if act.type == 'DROP'])
         return dur
 
-    def drive_duration(self):
-        """Total time carrier spent on all drive actions."""
-        dur_pick = sum([act.duration.total_seconds() for act in self.actions if act.type == 'DRIVE_PICK'])
-        dur_drop = sum([act.duration.total_seconds() for act in self.actions if act.type == 'DRIVE_DROP'])
+    def drive_pick_duration(self):
+        """Total time carrier spent on all drive-to-pick actions."""
+        dur = sum([act.duration.total_seconds() for act in self.actions if act.type == 'DRIVE_PICK'])
+        return dur
 
-        return dur_pick + dur_drop
+    def drive_drop_duration(self):
+        """Total time carrier spent on all drive-to-drop actions."""
+        dur = sum([act.duration.total_seconds() for act in self.actions if act.type == 'DRIVE_DROP'])
+        return dur
 
-    def travelled_distance(self):
-        """Total distance carrier covered."""
-        dist = sum([act.origin.dist(act.dest) for act in self.actions])
-        return dist
+    def travelled_distance_pick(self):
+        """Total distance carrier drove to pick locations."""
+        dist_pick = sum([act.dist() for act in self.actions if act.type == 'DRIVE_PICK'])
+        return dist_pick
+
+    def travelled_distance_drop(self):
+        """Total distance carrier drove to drop locations."""
+        dist_drop = sum([act.dist() for act in self.actions if act.type == 'DRIVE_DROP'])
+        return dist_drop
 
 
 class Order:
@@ -110,7 +118,9 @@ class Action:
         self.duration = timedelta(seconds=duration)
         self.end_time = self.start_time + self.duration
         self.type = action_type
-        self.dist = self.origin.dist(self.dest)
+
+    def dist(self):
+        return self.origin.dist(self.dest)
 
 
 def calculate_overlaps(vehicles: Dict[str, Carrier]):
@@ -155,7 +165,7 @@ def check_consistency(vehicles: Dict[str, Carrier]):
             if next_act.type == 'FINISH_DROP':
                 if not (act.type == 'DROP' and act.order == next_act.order):
                     inconsistent_actions += 1
-            if i == 0:
+            if i == 0:  # first action should be PICK or drive to PICK
                 if not (act.type == 'PICK' or act.type == 'DRIVE_PICK'):
                     inconsistent_actions += 1
 
