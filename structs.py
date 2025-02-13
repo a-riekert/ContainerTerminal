@@ -31,7 +31,6 @@ class Carrier:
                  loc: Location):
         self.name = name
         self.loc = loc
-        self.log_on_time = None
         self.orders = []
         self.actions = []
         self.overlaps = 0
@@ -97,20 +96,23 @@ class Order:
 
 class Action:
     """Class describing what a carrier does.
+    carrier: vehicle that does the action,
     order: container order the action belongs to,
     origin: location where it starts,
     dest: location where it ends,
     start_time: time the action starts,
     duration: number of seconds the action takes,
     action_type: describes what exactly it does.
-    Can be PICK, DROP, DRIVE_PICK, DRIVE_DROP, FINISH_PICK, FINISH_DROP."""
+    Can be LOGON, PICK, DROP, DRIVE_PICK, DRIVE_DROP, FINISH_PICK, FINISH_DROP."""
     def __init__(self,
-                 order: Order,
+                 carrier: Carrier,
+                 order: Order | None,
                  origin: Location,
                  dest: Location,
                  start_time: datetime,
                  duration: int,
                  action_type: str):
+        self.carrier = carrier
         self.order = order
         self.origin = origin
         self.dest = dest
@@ -139,7 +141,7 @@ def calculate_overlaps(vehicles: Dict[str, Carrier]):
 
 def check_consistency(vehicles: Dict[str, Carrier]):
     """Checks if actions of each carrier are consistent."""
-    inconsistent_actions = 0
+    inconsistent_actions = []
     for car in vehicles.values():
 
         for i, act in enumerate(car.actions[:-1]):
@@ -148,25 +150,28 @@ def check_consistency(vehicles: Dict[str, Carrier]):
             if next_act.type == 'DROP':
                 # e.g. to drop a container, the carrier first has to drive there with the same container.
                 if not (act.type == 'DRIVE_DROP' and act.order == next_act.order):
-                    inconsistent_actions += 1
+                    inconsistent_actions.append(act)
             if next_act.type == 'PICK':
                 if not(act.type == 'DRIVE_PICK' and act.order == next_act.order):
-                    inconsistent_actions += 1
+                    inconsistent_actions.append(act)
             if next_act.type == 'DRIVE_DROP':
                 if not (act.type == 'FINISH_PICK' and act.order == next_act.order):
-                    inconsistent_actions += 1
+                    inconsistent_actions.append(act)
             if next_act.type == 'DRIVE_PICK':
                 # to drive to pickup location the carrier first has to finish the previous drop, etc.
-                if not act.type == 'FINISH_DROP':
-                    inconsistent_actions += 1
+                if not (act.type == 'FINISH_DROP' or act.type == 'LOGON'):
+                    inconsistent_actions.append(act)
             if next_act.type == 'FINISH_PICK':
                 if not (act.type == 'PICK' and act.order == next_act.order):
-                    inconsistent_actions += 1
+                    inconsistent_actions.append(act)
             if next_act.type == 'FINISH_DROP':
                 if not (act.type == 'DROP' and act.order == next_act.order):
-                    inconsistent_actions += 1
-            if i == 0:  # first action should be PICK or drive to PICK
+                    inconsistent_actions.append(act)
+            if i == 0:  # first action should be LOGON
+                if not act.type == 'LOGON':
+                    inconsistent_actions.append(act)
+            if i == 1:  # second action should be PICK or drive to PICK
                 if not (act.type == 'PICK' or act.type == 'DRIVE_PICK'):
-                    inconsistent_actions += 1
+                    inconsistent_actions.append(act)
 
-    print('Number of action inconsistencies found:', inconsistent_actions)
+    return inconsistent_actions
