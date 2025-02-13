@@ -5,11 +5,13 @@ from matplotlib.ticker import FuncFormatter
 
 
 def kms(x, _):
-    return f'{x * 1e-6:.1f}km'  # Converts to kilometres
+    """Converts millimeters to kilometres for axis formatting."""
+    return f'{x * 1e-6:.1f}km'
 
 
 def plot_locs_and_vehicles(locations: Dict[str, Location],
                            vehicles: Dict[str, Carrier]):
+    """Plots all locations and starting positions of carriers as scatter plot."""
 
     fig, ax = plt.subplots(figsize=(14, 12))
     ax.scatter([loc.coordinates[0] for loc in locations.values()],
@@ -31,6 +33,7 @@ def plot_locs_and_vehicles(locations: Dict[str, Location],
 
 def plot_nr_jobs(vehicles: Dict[str, Carrier],
                  orders: Dict[str, Order]):
+    """Plots number of completed jobs per carrier."""
     carrier_dict = {car: 0 for car in vehicles.keys()}
     for order in orders.values():
         carrier_dict[order.pick_carrier[0].name] += 1
@@ -46,6 +49,7 @@ def plot_nr_jobs(vehicles: Dict[str, Carrier],
 
 
 def plot_distance(vehicles: Dict[str, Carrier]):
+    """Plots total driving distance per carrier."""
     fig, ax = plt.subplots(figsize=(14, 7))
     ax.bar(vehicles.keys(), [car.travelled_distance() for car in vehicles.values()])
 
@@ -59,6 +63,7 @@ def plot_distance(vehicles: Dict[str, Carrier]):
 
 
 def plot_work_percentage(vehicles: Dict[str, Carrier]):
+    """Plots percentage of time carrier did something."""
     total_times = [(car.actions[-1].end_time - car.log_on_time).total_seconds() for car in vehicles.values()]
     durations = [car.pick_duration() + car.drop_duration() + car.drive_duration() for car in vehicles.values()]
     percentages = [100. * dur / total_time for (dur, total_time) in zip(durations, total_times)]
@@ -74,6 +79,7 @@ def plot_work_percentage(vehicles: Dict[str, Carrier]):
 
 
 def plot_overlaps(vehicles: Dict[str, Carrier]):
+    """Plot number of overlapping actions per carrier."""
     fig, ax = plt.subplots(figsize=(14, 7))
     ax.bar(vehicles.keys(), [car.big_overlaps for car in vehicles.values()], color='red', label='Overlap of >1s')
     ax.bar(vehicles.keys(), [car.overlaps for car in vehicles.values()],
@@ -87,6 +93,7 @@ def plot_overlaps(vehicles: Dict[str, Carrier]):
 
 
 def plot_action_times(vehicles: Dict[str, Carrier]):
+    """Plot times carrier spent on actions drive, drop, pick."""
     pick_durations = [car.pick_duration() for car in vehicles.values()]
     drop_durations = [car.drop_duration() for car in vehicles.values()]
     travel_durations = [car.drive_duration() for car in vehicles.values()]
@@ -104,22 +111,3 @@ def plot_action_times(vehicles: Dict[str, Carrier]):
     ax.legend()
 
     return fig, ax
-
-
-def test(orders):
-    test = 0
-    os = []
-    for index, row in orders.iterrows():
-        if not row['TractorOrderId'] == 'TO_' + row['ContainerOrderId']:
-            print(f'In row {index}, first and second entry are different.')
-            test = 1
-        if not row['TractorOrderId'] == 'TO_CO_' + row['ContainerName']:
-            print(f'In row {index}, first and third entry are different.')
-            test = 1
-        os.append(int(row['ContainerName'][7:]))
-        if index % 100 == 0:
-            print(row['TractorOrderId'], row['ContainerOrderId'], row['ContainerName'])
-
-    if test == 0:
-        print('Test passed successfully.')
-    print(sorted(os))
