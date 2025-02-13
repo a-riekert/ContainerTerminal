@@ -3,6 +3,8 @@ from structs import *
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
 
+from adjustText import adjust_text  # Import the library
+
 
 def kms(x, _):
     """Converts millimeters to kilometres for axis formatting."""
@@ -10,18 +12,28 @@ def kms(x, _):
 
 
 def plot_locs_and_vehicles(locations: Dict[str, Location],
-                           vehicles: Dict[str, Carrier]):
+                           vehicles: Dict[str, Carrier],
+                           adjust_labels: bool = False):
     """Plots all locations and starting positions of carriers as scatter plot."""
 
     fig, ax = plt.subplots(figsize=(14, 12))
     ax.scatter([loc.coordinates[0] for loc in locations.values()],
                [loc.coordinates[1] for loc in locations.values()],
-               marker='.')
-
+               marker='.', label='Locations')
+    texts = []
     for car in vehicles.values():
         x = float(car.loc.coordinates[0])
         y = float(car.loc.coordinates[1])
-        ax.plot(x, y, marker='x', label=car.name)
+        if adjust_labels:
+            ax.plot(x, y, marker='x')
+            texts.append(plt.text(x, y, car.name, fontsize=12))
+        else:
+            ax.plot(x, y, marker='x', label=car.name)
+
+    if adjust_labels:  # automatically put carrier names in positions where they do not overlap
+        adjust_text(texts, ax=ax, expand=(1.4, 1.4), force_text=(0.15, 0.25),
+                    arrowprops=dict(arrowstyle="-", color='black', lw=0.5))
+
     ax.legend()
     ax.xaxis.set_major_formatter(FuncFormatter(kms))
     ax.yaxis.set_major_formatter(FuncFormatter(kms))
@@ -68,7 +80,7 @@ def plot_distance(vehicles: Dict[str, Carrier]):
 
 def plot_work_percentage(vehicles: Dict[str, Carrier]):
     """Plots percentage of time carrier did something."""
-    total_times = [(car.actions[-1].end_time - car.log_on_time).total_seconds() for car in vehicles.values()]
+    total_times = [(car.actions[-1].end_time - car.actions[0].start_time).total_seconds() for car in vehicles.values()]
     durations = [car.pick_duration() + car.drop_duration() + car.drive_pick_duration() + car.drive_drop_duration()
                  for car in vehicles.values()]
     percentages = [100. * dur / total_time for (dur, total_time) in zip(durations, total_times)]
@@ -122,8 +134,9 @@ def plot_action_times(vehicles: Dict[str, Carrier]):
 
 
 def plot_first_distances(vehicles: Dict[str, Carrier]):
+    """Plot distance carrier travelled from initial location to first action."""
     fig, ax = plt.subplots(figsize=(14, 7))
-    distances = [car.actions[0].dist() for car in vehicles.values()]
+    distances = [car.actions[1].dist() for car in vehicles.values()]
 
     ax.bar(vehicles.keys(), distances)
 
