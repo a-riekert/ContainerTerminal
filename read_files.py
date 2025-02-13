@@ -53,12 +53,7 @@ def read_data_to_dicts(file):
             print(f'In row {index}, first and third entry are different.')
             test += 1
 
-    if test == 0:
-        print('Test passed successfully.')
-    else:
-        print(f'Number of occurrences where values are not the same: {test}')
-
-    return loc_dict, carrier_dict, order_dict
+    return loc_dict, carrier_dict, order_dict, test
 
 
 def read_logs(file_name, locations, carriers, orders):
@@ -100,10 +95,10 @@ def read_logs(file_name, locations, carriers, orders):
     # 2024-11-14 10:26:30 INFO SC001 log on
     p_logon = re.compile(r'([\d :-]+) INFO ([A-Z\d]+) log on')
 
-    capacity_exceeded = 0
-    wrong_location = 0
-    wrong_distance = 0
-    incomplete_jobs = 0
+    capacity_exceeded = []
+    wrong_location = []
+    wrong_distance = []
+    incomplete_jobs = []
 
     with open(file_name) as file:
         for line in file:
@@ -121,7 +116,15 @@ def read_logs(file_name, locations, carriers, orders):
                 start_time = datetime.fromisoformat(m_logon.group(1))
                 car_name = m_logon.group(2)
 
-                carriers[car_name].log_on_time = start_time
+                act = Action(carriers[car_name],
+                             None,
+                             carriers[car_name].loc,
+                             carriers[car_name].loc,
+                             start_time,
+                             duration=0,
+                             action_type='LOGON')
+
+                carriers[car_name].actions.append(act)
 
             if m_pos:
                 start_time = datetime.fromisoformat(m_pos.group(1))
@@ -130,7 +133,7 @@ def read_logs(file_name, locations, carriers, orders):
                 loc_y = int(m_pos.group(4))
 
                 if carriers[car_name].loc.coordinates != (loc_x, loc_y):
-                    wrong_location += 1
+                    wrong_location.append(carriers[car_name].loc)
                 # check that carrier was indeed at current position after last drive action
 
             if m_work:
@@ -145,16 +148,18 @@ def read_logs(file_name, locations, carriers, orders):
                 carriers[car_name].orders.append(order_name)
                 orders[container_name].pick_carrier.append(carriers[car_name])
                 orders[container_name].pick_location.append(locations[location_name])
-                carriers[car_name].actions.append(Action(order=orders[container_name],
-                                                         origin=locations[location_name],
-                                                         dest=locations[location_name],
-                                                         start_time=start_time,
-                                                         duration=work_time,
-                                                         action_type='PICK'))
+                act = Action(carrier=carriers[car_name],
+                             order=orders[container_name],
+                             origin=locations[location_name],
+                             dest=locations[location_name],
+                             start_time=start_time,
+                             duration=work_time,
+                             action_type='PICK')
+                carriers[car_name].actions.append(act)
                 locations[location_name].nr_carriers += 1
 
                 if locations[location_name].nr_carriers > locations[location_name].capacity:
-                    capacity_exceeded += 1
+                    capacity_exceeded.append(act)
                 # check if too many carriers are now at location
 
             if m_work2:
@@ -168,16 +173,19 @@ def read_logs(file_name, locations, carriers, orders):
                 carriers[car_name].orders.append(order_name)
                 orders[container_name].drop_carrier.append(carriers[car_name])
                 orders[container_name].drop_location.append(locations[location_name])
-                carriers[car_name].actions.append(Action(order=orders[container_name],
-                                                         origin=locations[location_name],
-                                                         dest=locations[location_name],
-                                                         start_time=start_time,
-                                                         duration=work_time,
-                                                         action_type='DROP'))
+
+                act = Action(carrier=carriers[car_name],
+                             order=orders[container_name],
+                             origin=locations[location_name],
+                             dest=locations[location_name],
+                             start_time=start_time,
+                             duration=work_time,
+                             action_type='DROP')
+                carriers[car_name].actions.append(act)
                 locations[location_name].nr_carriers += 1
 
                 if locations[location_name].nr_carriers > locations[location_name].capacity:
-                    capacity_exceeded += 1
+                    capacity_exceeded.append(act)
                 # check if too many carriers are now at location
 
             if m_drive:
@@ -189,7 +197,8 @@ def read_logs(file_name, locations, carriers, orders):
                 work_time = int(m_drive.group(6))
                 distance = int(m_drive.group(7))
 
-                act = Action(order=orders[container_name],
+                act = Action(carrier=carriers[car_name],
+                             order=orders[container_name],
                              origin=carriers[car_name].loc,
                              dest=locations[location_name],
                              start_time=start_time,
@@ -198,7 +207,7 @@ def read_logs(file_name, locations, carriers, orders):
 
                 carriers[car_name].actions.append(act)
                 if distance != act.origin.dist(act.dest):
-                    wrong_distance += 1
+                    wrong_distance.append(act)
                     # check that travelled distance is indeed the distance to the previous location
 
                 carriers[car_name].loc = locations[location_name]
@@ -212,7 +221,8 @@ def read_logs(file_name, locations, carriers, orders):
                 work_time = int(m_drive2.group(6))
                 distance = int(m_drive2.group(7))
 
-                act = Action(order=orders[container_name],
+                act = Action(carrier=carriers[car_name],
+                             order=orders[container_name],
                              origin=carriers[car_name].loc,
                              dest=locations[location_name],
                              start_time=start_time,
@@ -221,7 +231,7 @@ def read_logs(file_name, locations, carriers, orders):
 
                 carriers[car_name].actions.append(act)
                 if distance != act.origin.dist(act.dest):
-                    wrong_distance += 1
+                    wrong_distance.append(act)
                 # check that travelled distance is indeed the distance to the previous location
 
                 carriers[car_name].loc = locations[location_name]
@@ -233,7 +243,8 @@ def read_logs(file_name, locations, carriers, orders):
                 location_name = m_finish.group(5)
                 start_time = datetime.fromisoformat(m_finish.group(1))
 
-                act = Action(order=orders[container_name],
+                act = Action(carrier=carriers[car_name],
+                             order=orders[container_name],
                              origin=locations[location_name],
                              dest=locations[location_name],
                              start_time=start_time,
@@ -250,7 +261,8 @@ def read_logs(file_name, locations, carriers, orders):
                 location_name = m_finish2.group(5)
                 start_time = datetime.fromisoformat(m_finish2.group(1))
 
-                act = Action(order=orders[container_name],
+                act = Action(carrier=carriers[car_name],
+                             order=orders[container_name],
                              origin=locations[location_name],
                              dest=locations[location_name],
                              start_time=start_time,
@@ -269,12 +281,11 @@ def read_logs(file_name, locations, carriers, orders):
                 order.drop_carrier[0] != order.pick_carrier[0],
                 order.pick_location[0] != order.origin,
                 order.drop_location[0] != order.dest]):
-            incomplete_jobs += 1
+            incomplete_jobs.append(order)
 
-    error_dict = {'nr_orders': len(orders),
-                  'capacity_exceeded': capacity_exceeded,
-                  'wrong_location': wrong_location,
-                  'wrong_distance': wrong_distance,
-                  'incomplete_jobs': incomplete_jobs}
+    info_dict = {'capacity_exceeded': capacity_exceeded,
+                 'wrong_location': wrong_location,
+                 'wrong_distance': wrong_distance,
+                 'incomplete_jobs': incomplete_jobs}
 
-    return locations, carriers, orders, error_dict
+    return locations, carriers, orders, info_dict
