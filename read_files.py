@@ -7,6 +7,7 @@ import re
 
 
 def read_data_to_dicts(file):
+    """Saving data from Excel file in dictionaries containing locations, carriers and orders."""
     data = pd.read_excel(file, [0, 1, 2])
 
     locations = data[0]
@@ -41,37 +42,63 @@ def read_data_to_dicts(file):
 
         order_dict[name] = Order(name, loc_dict[orig], loc_dict[dest], first_time)
 
+    test = 0
+    # testing if columns TractorOrderId, ContainerOrderId, ContainerName are the same up to first few characters
+    # so these can be used interchangeably
+    for index, row in orders.iterrows():
+        if not row['TractorOrderId'] == 'TO_' + row['ContainerOrderId']:
+            print(f'In row {index}, first and second entry are different.')
+            test += 1
+        if not row['TractorOrderId'] == 'TO_CO_' + row['ContainerName']:
+            print(f'In row {index}, first and third entry are different.')
+            test += 1
+
+    if test == 0:
+        print('Test passed successfully.')
+    else:
+        print(f'Number of occurrences where values are not the same: {test}')
+
     return loc_dict, carrier_dict, order_dict
 
 
 def read_logs(file_name, locations, carriers, orders):
+    """Analyzing data from log file using regex."""
+
+    # regular expression for line of the following form, which describes that carrier is working on a pick
     # 2024-11-14 10:27:10 INFO SC004 (TO: TO_CO_TFTU000001, CO: CO_TFTU000001, PICK) working at QC001; 60 s
-    p_work_pick = re.compile(
-        '([\d :-]+) INFO ([A-Z\d]+) \(TO: ([A-Z\d_]+).*CO: ([A-Z\d_]+).*PICK\) working at ([A-Z\d.]+); ([\d]+) s')
+    p_work_pick = re.compile(r'([\d :-]+) INFO ([A-Z\d]+) \(TO: ([A-Z\d_]+).*CO: ([A-Z\d_]+).*PICK\) working at (['
+                             r'A-Z\d.]+); (\d+) s')
 
+    # regular expression for line of the following form, which describes that carrier is working on a drop
     # 2024-11-14 10:29:22 INFO SC014 (TO: TO_CO_TFTU000005, CO: CO_TFTU000005, DROP) working at YARD001.59; 61 s
-    p_work_drop = re.compile(
-        '([\d :-]+) INFO ([A-Z\d]+) \(TO: ([A-Z\d_]+).*CO: ([A-Z\d_]+).*DROP\) working at ([A-Z\d.]+); ([\d]+) s')
+    p_work_drop = re.compile(r'([\d :-]+) INFO ([A-Z\d]+) \(TO: ([A-Z\d_]+).*CO: ([A-Z\d_]+).*DROP\) working at (['
+                             r'A-Z\d.]+); (\d+) s')
 
+    # regular expressions for lines of the following form, which describe that carrier is driving to a location
     # 2024-11-14 10:28:34 INFO SC019 (TO: TO_CO_TFTU000002, CO: CO_TFTU000002, DROP) driving to WS012.01; 106 s; 586343 mm
     # 2024-11-14 10:27:10 INFO SC001 (TO: TO_CO_TFTU000018, CO: CO_TFTU000018, PICK) driving to QC003; 31 s; 172693 mm
-    p_drive_pick = re.compile(
-        '([\d :-]+) INFO ([A-Z\d]+) \(TO: ([A-Z\d_]+).*CO: ([A-Z\d_]+).*PICK\) driving to ([A-Z\d.]+); ([\d]+) s; ([\d]+) mm')
-    p_drive_drop = re.compile(
-        '([\d :-]+) INFO ([A-Z\d]+) \(TO: ([A-Z\d_]+).*CO: ([A-Z\d_]+).*DROP\) driving to ([A-Z\d.]+); ([\d]+) s; ([\d]+) mm')
+    p_drive_pick = re.compile(r'([\d :-]+) INFO ([A-Z\d]+) \(TO: ([A-Z\d_]+).*CO: ([A-Z\d_]+).*PICK\) driving to (['
+                              r'A-Z\d.]+); (\d+) s; (\d+) mm')
+    p_drive_drop = re.compile(r'([\d :-]+) INFO ([A-Z\d]+) \(TO: ([A-Z\d_]+).*CO: ([A-Z\d_]+).*DROP\) driving to (['
+                              r'A-Z\d.]+); (\d+) s; (\d+) mm')
 
+    # regular expression for line of the following form, which describes that carrier has finished a pick
     # 2024-11-14 10:28:07 INFO SC004 (TO: TO_CO_TFTU000001, CO: CO_TFTU000001, PICK) finished at QC001
-    p_finish_pick = re.compile(
-        '([\d :-]+) INFO ([A-Z\d]+) \(TO: ([A-Z\d_]+).*CO: ([A-Z\d_]+).*PICK\) finished at ([A-Z\d.]+)')
+    p_finish_pick = re.compile(r'([\d :-]+) INFO ([A-Z\d]+) \(TO: ([A-Z\d_]+).*CO: ([A-Z\d_]+).*PICK\) finished at (['
+                               r'A-Z\d.]+)')
+
+    # regular expression for line of the following form, which describes that carrier has finished a drop
     # 2024-11-14 10:30:22 INFO SC014 (TO: TO_CO_TFTU000005, CO: CO_TFTU000005, DROP) finished at YARD001.59
-    p_finish_drop = re.compile(
-        '([\d :-]+) INFO ([A-Z\d]+) \(TO: ([A-Z\d_]+).*CO: ([A-Z\d_]+).*DROP\) finished at ([A-Z\d.]+)')
+    p_finish_drop = re.compile(r'([\d :-]+) INFO ([A-Z\d]+) \(TO: ([A-Z\d_]+).*CO: ([A-Z\d_]+).*DROP\) finished at (['
+                               r'A-Z\d.]+)')
 
+    # regular expression for line of the following form, which describes that carrier is at certain position
     # 2024-11-14 10:28:07 DEBUG SC004 now at position (242320, 993371)
-    p_pos = re.compile('([\d :-]+) DEBUG ([A-Z\d]+) now at position \(([\d]+), ([\d]+)\)')
+    p_pos = re.compile(r'([\d :-]+) DEBUG ([A-Z\d]+) now at position \((\d+), (\d+)\)')
 
+    # regular expression for line of the following form, which describes when carrier logs on
     # 2024-11-14 10:26:30 INFO SC001 log on
-    p_logon = re.compile('([\d :-]+) INFO ([A-Z\d]+) log on')
+    p_logon = re.compile(r'([\d :-]+) INFO ([A-Z\d]+) log on')
 
     capacity_exceeded = 0
     wrong_location = 0
@@ -80,6 +107,7 @@ def read_logs(file_name, locations, carriers, orders):
 
     with open(file_name) as file:
         for line in file:
+            # matches for each of the regular expressions
             m_work = p_work_pick.search(line)
             m_work2 = p_work_drop.search(line)
             m_drive = p_drive_pick.search(line)
@@ -127,6 +155,7 @@ def read_logs(file_name, locations, carriers, orders):
 
                 if locations[location_name].nr_carriers > locations[location_name].capacity:
                     capacity_exceeded += 1
+                # check if too many carriers are now at location
 
             if m_work2:
                 car_name = m_work2.group(2)
@@ -149,6 +178,7 @@ def read_logs(file_name, locations, carriers, orders):
 
                 if locations[location_name].nr_carriers > locations[location_name].capacity:
                     capacity_exceeded += 1
+                # check if too many carriers are now at location
 
             if m_drive:
                 car_name = m_drive.group(2)
@@ -169,6 +199,7 @@ def read_logs(file_name, locations, carriers, orders):
                 carriers[car_name].actions.append(act)
                 if distance != act.origin.dist(act.dest):
                     wrong_distance += 1
+                    # check that travelled distance is indeed the distance to the previous location
 
                 carriers[car_name].loc = locations[location_name]
 
@@ -191,16 +222,46 @@ def read_logs(file_name, locations, carriers, orders):
                 carriers[car_name].actions.append(act)
                 if distance != act.origin.dist(act.dest):
                     wrong_distance += 1
+                # check that travelled distance is indeed the distance to the previous location
 
                 carriers[car_name].loc = locations[location_name]
 
             if m_finish:
-                locations[m_finish.group(5)].nr_carriers -= 1
+                car_name = m_finish.group(2)
+                order_name = m_finish.group(3)
+                container_name = m_finish.group(4)
+                location_name = m_finish.group(5)
+                start_time = datetime.fromisoformat(m_finish.group(1))
+
+                act = Action(order=orders[container_name],
+                             origin=locations[location_name],
+                             dest=locations[location_name],
+                             start_time=start_time,
+                             duration=0,
+                             action_type='FINISH_PICK')
+                carriers[car_name].actions.append(act)
+
+                locations[location_name].nr_carriers -= 1
 
             if m_finish2:
-                locations[m_finish2.group(5)].nr_carriers -= 1
+                car_name = m_finish2.group(2)
+                order_name = m_finish2.group(3)
+                container_name = m_finish2.group(4)
+                location_name = m_finish2.group(5)
+                start_time = datetime.fromisoformat(m_finish2.group(1))
+
+                act = Action(order=orders[container_name],
+                             origin=locations[location_name],
+                             dest=locations[location_name],
+                             start_time=start_time,
+                             duration=0,
+                             action_type='FINISH_DROP')
+                carriers[car_name].actions.append(act)
+
+                locations[location_name].nr_carriers -= 1
 
     for order in orders.values():
+        # check that every order was completed by exactly 1 carrier
         if any([len(order.pick_carrier) != 1,
                 len(order.drop_carrier) != 1,
                 len(order.pick_location) != 1,
