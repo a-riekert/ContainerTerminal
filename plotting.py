@@ -49,14 +49,18 @@ def plot_nr_jobs(vehicles: Dict[str, Carrier],
 
 
 def plot_distance(vehicles: Dict[str, Carrier]):
-    """Plots total driving distance per carrier."""
+    """Plots total driving distance to pick/drop locations per carrier."""
     fig, ax = plt.subplots(figsize=(14, 7))
-    ax.bar(vehicles.keys(), [car.travelled_distance() for car in vehicles.values()])
+    ax.bar(vehicles.keys(), [car.travelled_distance_pick() for car in vehicles.values()],
+           label='Drive to pick', color='b')
+    ax.bar(vehicles.keys(), [car.travelled_distance_drop() for car in vehicles.values()],
+           bottom=[car.travelled_distance_pick() for car in vehicles.values()],
+           label='Drive to drop', color='g')
 
     ax.set_xlabel('Carrier')
     ax.set_ylabel('Distance travelled')
     ax.set_title('Distance travelled by carriers')
-
+    ax.legend()
     ax.yaxis.set_major_formatter(FuncFormatter(kms))
 
     return fig, ax
@@ -65,7 +69,8 @@ def plot_distance(vehicles: Dict[str, Carrier]):
 def plot_work_percentage(vehicles: Dict[str, Carrier]):
     """Plots percentage of time carrier did something."""
     total_times = [(car.actions[-1].end_time - car.log_on_time).total_seconds() for car in vehicles.values()]
-    durations = [car.pick_duration() + car.drop_duration() + car.drive_duration() for car in vehicles.values()]
+    durations = [car.pick_duration() + car.drop_duration() + car.drive_pick_duration() + car.drive_drop_duration()
+                 for car in vehicles.values()]
     percentages = [100. * dur / total_time for (dur, total_time) in zip(durations, total_times)]
 
     fig, ax = plt.subplots(figsize=(14, 7))
@@ -81,9 +86,9 @@ def plot_work_percentage(vehicles: Dict[str, Carrier]):
 def plot_overlaps(vehicles: Dict[str, Carrier]):
     """Plot number of overlapping actions per carrier."""
     fig, ax = plt.subplots(figsize=(14, 7))
-    ax.bar(vehicles.keys(), [car.big_overlaps for car in vehicles.values()], color='red', label='Overlap of >1s')
+    ax.bar(vehicles.keys(), [car.big_overlaps for car in vehicles.values()], color='r', label='Overlap of >1s')
     ax.bar(vehicles.keys(), [car.overlaps for car in vehicles.values()],
-           bottom=[car.big_overlaps for car in vehicles.values()], color='orange', label='Overlap of 1s')
+           bottom=[car.big_overlaps for car in vehicles.values()], color='y', label='Overlap of 1s')
     ax.set_xlabel('Carrier')
     ax.set_ylabel('Number of overlaps')
     ax.set_title('Number of action overlaps per carrier')
@@ -96,18 +101,35 @@ def plot_action_times(vehicles: Dict[str, Carrier]):
     """Plot times carrier spent on actions drive, drop, pick."""
     pick_durations = [car.pick_duration() for car in vehicles.values()]
     drop_durations = [car.drop_duration() for car in vehicles.values()]
-    travel_durations = [car.drive_duration() for car in vehicles.values()]
+    travel_pick_durations = [car.drive_pick_duration() for car in vehicles.values()]
+    travel_drop_durations = [car.drive_drop_duration() for car in vehicles.values()]
 
     fig, ax = plt.subplots(figsize=(14, 7))
 
-    ax.bar(vehicles.keys(), pick_durations, label='Pick', color='red')
-    ax.bar(vehicles.keys(), drop_durations, label='Drop', color='blue', bottom=pick_durations)
-    ax.bar(vehicles.keys(), travel_durations, label='Drive', color='green',
+    ax.bar(vehicles.keys(), pick_durations, label='Pick', color='dodgerblue')
+    ax.bar(vehicles.keys(), drop_durations, label='Drop', color='limegreen', bottom=pick_durations)
+    ax.bar(vehicles.keys(), travel_pick_durations, label='Drive to pick', color='darkblue',
            bottom=[sum(x) for x in zip(pick_durations, drop_durations)])
+    ax.bar(vehicles.keys(), travel_drop_durations, label='Drive to drop', color='darkgreen',
+           bottom=[sum(x) for x in zip(pick_durations, drop_durations, travel_pick_durations)])
 
     ax.set_xlabel('Carrier')
     ax.set_ylabel('Work time (s)')
     ax.set_title('Total working time of carriers')
     ax.legend()
+
+    return fig, ax
+
+
+def plot_first_distances(vehicles: Dict[str, Carrier]):
+    fig, ax = plt.subplots(figsize=(14, 7))
+    distances = [car.actions[0].dist() for car in vehicles.values()]
+
+    ax.bar(vehicles.keys(), distances)
+
+    ax.set_xlabel('Carrier')
+    ax.set_ylabel('Distance for first action')
+    ax.set_title('Distance travelled for first job')
+    ax.yaxis.set_major_formatter(FuncFormatter(kms))
 
     return fig, ax
